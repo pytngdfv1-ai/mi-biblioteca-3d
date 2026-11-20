@@ -142,6 +142,10 @@ function jewelCase(front, back, openAngle, cs) {
   const backCard = new T.Mesh(new T.PlaneGeometry(W * 0.96, H * 0.96), new T.MeshStandardMaterial({ map: back, roughness: 0.6 }));
   backCard.rotation.y = Math.PI; backCard.position.z = -D / 2 - 0.008;
   tray.add(backCard);
+  // Contraportada (o lista de temas) también por dentro, a la vista cuando el estuche se abre
+  const inner = new T.Mesh(new T.PlaneGeometry(W * 0.94, H * 0.94), new T.MeshStandardMaterial({ map: back, roughness: 0.6 }));
+  inner.position.z = -D / 2 + 0.008;
+  tray.add(inner);
   for (const s of [-1, 1]) {
     const rail = new T.Mesh(new T.BoxGeometry(0.014, H, D), clear());
     rail.position.set(s * (W / 2 - 0.007), 0, 0);

@@ -186,7 +186,7 @@ def hacer_album(r, out, cloud, path, files, root, st):
             manifest["objetos"].setdefault("cassette" if obj == "k7" else obj, {})[estado] = nombre
     out.put(man_path, json.dumps(manifest, ensure_ascii=False, indent=1).encode(), "application/json")
     espera = (not tiene_back and not single)
-    return ("espera" if espera else "hecho"), ", ".join(objetos)
+    return ("espera" if espera else "hecho"), ", ".join(objetos) + f" · {len(audio)} temas" + (" · suelto" if single else "") + (" · con contraportada" if tiene_back else "")
 
 
 def informe(res, total, t0):

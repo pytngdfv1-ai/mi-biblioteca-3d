@@ -1,0 +1,7 @@
+{
+  "name": "mi-biblioteca-3d",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Agente que genera objetos 3D (LP, vinilo 7\", cassette) para Mi Biblioteca",
+  "dependencies": { "three": "0.160.0" }
+}

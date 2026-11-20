@@ -1,0 +1,57 @@
+name: Objetos 3D
+
+on:
+  schedule:
+    # 4 corridas al día (hora de Uruguay: 00:23, 06:23, 12:23 y 18:23)
+    - cron: "23 3,9,15,21 * * *"
+  workflow_dispatch:
+    inputs:
+      demo:
+        description: "Demo sin nube (genera muestras, no necesita secretos)"
+        default: "false"
+      force:
+        description: "Rehacer todo aunque ya esté hecho"
+        default: "false"
+      max_albums:
+        description: "Máximo de álbumes por corrida"
+        default: "60"
+      dry_run:
+        description: "Probar sin escribir en la nube (deja los archivos en el artefacto)"
+        default: "false"
+
+concurrency:
+  group: objetos3d
+  cancel-in-progress: false
+
+jobs:
+  objetos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 58
+    env:
+      KOOFR_EMAIL: ${{ secrets.KOOFR_EMAIL }}
+      KOOFR_APP_PASSWORD: ${{ secrets.KOOFR_APP_PASSWORD }}
+      KOOFR_FOLDER: ${{ secrets.KOOFR_FOLDER }}
+      CLOUDS: ${{ secrets.CLOUDS }}
+      DEMO: ${{ github.event.inputs.demo }}
+      FORCE: ${{ github.event.inputs.force }}
+      DRY_RUN: ${{ github.event.inputs.dry_run }}
+      MAX_ALBUMS: ${{ github.event.inputs.max_albums }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci || npm install
+      - run: pip install -r agent/requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - name: Generar objetos 3D
+        run: cd agent && python generar3d.py
+      - name: Guardar resultados de prueba
+        if: always() && (github.event.inputs.demo == 'true' || github.event.inputs.dry_run == 'true')
+        uses: actions/upload-artifact@v4
+        with:
+          name: salida
+          path: agent/salida/

@@ -1,0 +1,238 @@
+<!doctype html>
+<meta charset="utf-8">
+<body style="margin:0;background:transparent">
+<script type="importmap">{"imports":{"three":"/node_modules/three/build/three.module.js","three/addons/":"/node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import * as T from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const S = 300;                       // tamaño de cada cuadro
+const renderer = new T.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(S, S);
+renderer.setClearColor(0x000000, 0);
+renderer.outputColorSpace = T.SRGBColorSpace;
+renderer.toneMapping = T.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = T.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const pm = new T.PMREMGenerator(renderer);
+const envTex = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const loader = new T.TextureLoader();
+const loadTex = (src) => new Promise((res, rej) => loader.load(src, (t) => {
+  t.colorSpace = T.SRGBColorSpace;
+  t.anisotropy = 4;
+  res(t);
+}, undefined, rej));
+
+// ---------- texturas dibujadas por código ----------
+function canvasTex(w, h, draw) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  draw(c.getContext('2d'), w, h);
+  const t = new T.CanvasTexture(c);
+  t.colorSpace = T.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+// Disco de vinilo visto desde arriba: surcos + sello central
+function discTexture(labelImg, accent) {
+  return canvasTex(1024, 1024, (g, w, h) => {
+    const cx = w / 2, cy = h / 2;
+    g.fillStyle = '#0b0b0d'; g.beginPath(); g.arc(cx, cy, cx, 0, 7); g.fill();
+    for (let r = cx * 0.36; r < cx * 0.985; r += 2.2) {
+      g.strokeStyle = `rgba(255,255,255,${0.025 + 0.03 * Math.abs(Math.sin(r * 0.37))})`;
+      g.lineWidth = 1; g.beginPath(); g.arc(cx, cy, r, 0, 7); g.stroke();
+    }
+    // brillo cónico
+    const grad = g.createConicGradient ? g.createConicGradient(0.6, cx, cy) : null;
+    if (grad) {
+      grad.addColorStop(0, 'rgba(255,255,255,0)'); grad.addColorStop(0.08, 'rgba(255,255,255,.16)');
+      grad.addColorStop(0.16, 'rgba(255,255,255,0)'); grad.addColorStop(0.5, 'rgba(255,255,255,0)');
+      grad.addColorStop(0.58, 'rgba(255,255,255,.16)'); grad.addColorStop(0.66, 'rgba(255,255,255,0)');
+      g.fillStyle = grad; g.beginPath(); g.arc(cx, cy, cx * 0.98, 0, 7); g.fill();
+    }
+    const lr = cx * 0.33;
+    g.save(); g.beginPath(); g.arc(cx, cy, lr, 0, 7); g.clip();
+    if (labelImg) {
+      const s = Math.min(labelImg.width, labelImg.height);
+      g.drawImage(labelImg, (labelImg.width - s) / 2, (labelImg.height - s) / 2, s, s, cx - lr, cy - lr, lr * 2, lr * 2);
+    } else {
+      g.fillStyle = accent; g.fillRect(cx - lr, cy - lr, lr * 2, lr * 2);
+      g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.arc(cx, cy, lr * 0.55, 0, 7); g.fill();
+    }
+    g.restore();
+    g.fillStyle = '#0b0b0d'; g.beginPath(); g.arc(cx, cy, cx * 0.022, 0, 7); g.fill();
+  });
+}
+
+// Cassette visto desde arriba: etiqueta, ventana y ruedas
+function cassetteTexture(shellImg, accent, title) {
+  return canvasTex(1024, 656, (g, w, h) => {
+    if (shellImg) {
+      g.drawImage(shellImg, 0, 0, w, h);
+      return;
+    }
+    g.fillStyle = '#17171a'; g.fillRect(0, 0, w, h);
+    g.fillStyle = accent; g.fillRect(40, 40, w - 80, h * 0.5);
+    g.fillStyle = 'rgba(255,255,255,.88)'; g.fillRect(60, 60, w - 120, h * 0.34);
+    g.fillStyle = '#111'; g.font = 'bold 44px sans-serif'; g.textBaseline = 'middle';
+    g.fillText((title || '').slice(0, 26), 84, 60 + h * 0.17);
+    g.fillStyle = '#0a0a0c'; g.beginPath(); g.roundRect(w * 0.26, h * 0.56, w * 0.48, h * 0.2, 40); g.fill();
+    for (const x of [0.36, 0.64]) {
+      g.fillStyle = '#d9d9d9'; g.beginPath(); g.arc(w * x, h * 0.66, 34, 0, 7); g.fill();
+      g.fillStyle = '#222'; g.beginPath(); g.arc(w * x, h * 0.66, 15, 0, 7); g.fill();
+    }
+    g.fillStyle = '#2a2a2e'; g.beginPath(); g.roundRect(w * 0.18, h * 0.84, w * 0.64, h * 0.1, 18); g.fill();
+  });
+}
+
+const paper = (c = 0xd9d4c8) => new T.MeshStandardMaterial({ color: c, roughness: 0.85, metalness: 0 });
+const imgOf = async (src) => src ? await new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; }) : null;
+
+// ---------- construcción de objetos ----------
+function sleeve(W, H, front, back, thick = 0.035) {
+  const geo = new T.BoxGeometry(W, H, thick);
+  const edge = paper(0x1c1c1f);
+  const mats = [edge, edge, edge, edge,
+    new T.MeshStandardMaterial({ map: front, roughness: 0.55, metalness: 0.02 }),
+    new T.MeshStandardMaterial({ map: back, roughness: 0.55, metalness: 0.02 })];
+  const m = new T.Mesh(geo, mats);
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+}
+
+function disc(R, tex) {
+  const g = new T.Group();
+  const geo = new T.CylinderGeometry(R, R, 0.012, 96);
+  const black = new T.MeshStandardMaterial({ color: 0x0c0c0e, roughness: 0.35, metalness: 0.35 });
+  const top = new T.MeshStandardMaterial({ map: tex, roughness: 0.3, metalness: 0.4 });
+  const m = new T.Mesh(geo, [black, top, top]);
+  m.castShadow = true; m.receiveShadow = true;
+  g.add(m);
+  return g;
+}
+
+function cassetteBody(W, D, tex) {
+  const g = new T.Group();
+  const H = 0.055;
+  const side = new T.MeshStandardMaterial({ color: 0x1b1b1e, roughness: 0.4, metalness: 0.1 });
+  const top = new T.MeshStandardMaterial({ map: tex, roughness: 0.35, metalness: 0.05 });
+  const m = new T.Mesh(new T.BoxGeometry(W, H, D), [side, side, top, top, side, side]);
+  m.castShadow = true; m.receiveShadow = true;
+  g.add(m);
+  return g;
+}
+
+const clear = () => new T.MeshPhysicalMaterial({
+  color: 0xffffff, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.12,
+  envMapIntensity: 1.4, side: T.DoubleSide, depthWrite: false,
+});
+
+function jewelCase(front, back, openAngle, cs) {
+  // Estuche transparente de cassette (de pie): tapa articulada + bandeja con la tarjeta trasera
+  const W = 0.70, H = 1.12, D = 0.09;
+  const root = new T.Group();
+  const tray = new T.Group();
+  tray.add(new T.Mesh(new T.BoxGeometry(W, H, 0.012), clear()).translateZ(-D / 2));
+  const backCard = new T.Mesh(new T.PlaneGeometry(W * 0.96, H * 0.96), new T.MeshStandardMaterial({ map: back, roughness: 0.6 }));
+  backCard.rotation.y = Math.PI; backCard.position.z = -D / 2 - 0.008;
+  tray.add(backCard);
+  for (const s of [-1, 1]) {
+    const rail = new T.Mesh(new T.BoxGeometry(0.014, H, D), clear());
+    rail.position.set(s * (W / 2 - 0.007), 0, 0);
+    tray.add(rail);
+  }
+  const lid = new T.Group();
+  const lidPlane = new T.Mesh(new T.BoxGeometry(W, H, 0.01), clear());
+  lidPlane.position.set(W / 2, 0, 0);
+  lid.add(lidPlane);
+  const card = new T.Mesh(new T.PlaneGeometry(W * 0.96, H * 0.96), new T.MeshStandardMaterial({ map: front, roughness: 0.5 }));
+  card.position.set(W / 2, 0, -0.008);   // la portada se lee a través de la tapa transparente
+  lid.add(card);
+  lid.position.set(-W / 2, 0, D / 2);
+  lid.rotation.y = -openAngle;
+  root.add(tray, lid);
+  root.userData = { W, H, D };
+  return root;
+}
+
+// ---------- escenas ----------
+async function build(o) {
+  const scene = new T.Scene();
+  scene.environment = envTex;
+  const key = new T.DirectionalLight(0xffffff, 1.7);
+  key.position.set(2.5, 4, 3.5); key.castShadow = true;
+  key.shadow.mapSize.set(1024, 1024);
+  Object.assign(key.shadow.camera, { left: -2.2, right: 2.2, top: 2.2, bottom: -2.2, near: 0.5, far: 14 });
+  scene.add(key);
+  const fill = new T.DirectionalLight(0xb8c8ff, 0.5); fill.position.set(-3, 1.5, -2); scene.add(fill);
+
+  const front = await loadTex(o.front), back = await loadTex(o.back);
+  const label = await imgOf(o.label), shell = await imgOf(o.shell);
+  const root = new T.Group(); scene.add(root);
+  const open = o.state === 'abierto';
+  const scale = o.kind === '7' ? 0.58 : 1;
+  let floorY = -0.5;
+
+  if (o.kind === 'lp' || o.kind === '7') {
+    const W = 1.0 * scale, H = 1.0 * scale;
+    const sl = sleeve(W, H, front, back);
+    const R = 0.485 * scale;
+    const d = disc(R, discTexture(label, o.accent));
+    if (!open) {
+      root.add(sl);
+      floorY = -H / 2;
+    } else {
+      sl.position.set(-0.45 * scale, 0, 0);
+      root.add(sl);
+      d.position.set(0.42 * scale, -H / 2 + 0.01, 0.62 * scale);   // descansando en el suelo, junto a la funda
+      d.rotation.x = 0;
+      root.add(d);
+      floorY = -H / 2;
+    }
+  } else {
+    const cs = jewelCase(front, back, open ? 1.75 : 0, 1);
+    cs.userData.W; root.add(cs);
+    if (open) {
+      const cb = cassetteBody(0.66, 0.42, cassetteTexture(shell, o.accent, o.title));
+      cb.position.set(0.55, -cs.userData.H / 2 + 0.03, 0.6);
+      cb.rotation.y = -0.35;
+      root.add(cb);
+    }
+    floorY = -cs.userData.H / 2;
+  }
+
+  const ground = new T.Mesh(new T.PlaneGeometry(10, 10), new T.ShadowMaterial({ opacity: 0.32 }));
+  ground.rotation.x = -Math.PI / 2; ground.position.y = floorY - 0.0005; ground.receiveShadow = true;
+  scene.add(ground);
+
+  const cam = new T.PerspectiveCamera(28, 1, 0.1, 50);
+  const dist = (open ? (o.kind === 'k7' ? 5.0 : 5.6) : 3.9) * (o.kind === '7' ? 0.72 : 1);
+  const elev = (o.elev ?? 14) * Math.PI / 180;
+  cam.position.set(0, Math.sin(elev) * dist, Math.cos(elev) * dist);
+  cam.lookAt(0, o.kind === 'k7' ? 0 : -0.02, 0);
+  return { scene, root, cam };
+}
+
+window.renderSheet = async (o) => {
+  const { scene, root, cam } = await build(o);
+  const N = o.frames || 16, cols = o.cols || 4, rows = Math.ceil(N / cols);
+  const sheet = document.createElement('canvas');
+  sheet.width = S * cols; sheet.height = S * rows;
+  const sg = sheet.getContext('2d');
+  for (let i = 0; i < N; i++) {
+    root.rotation.y = (i / N) * Math.PI * 2;
+    renderer.render(scene, cam);
+    sg.drawImage(renderer.domElement, (i % cols) * S, Math.floor(i / cols) * S);
+  }
+  scene.traverse((m) => { if (m.geometry) m.geometry.dispose(); });
+  return sheet.toDataURL('image/png');
+};
+window.ready = true;
+</script>
+</body>

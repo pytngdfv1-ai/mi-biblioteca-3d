@@ -82,3 +82,9 @@ def trasera(front, artista, album, temas, anio=None, sello=None, size=1024):
     if pie:
         d.text((m, size - m - int(size * 0.03)), pie, font=font(int(size * 0.028)), fill=(170, 170, 170))
     return bg
+
+
+def huella_img(im):
+    """Huella perceptual: no cambia si la imagen solo se recomprime o cambia de formato."""
+    g = im.convert("L").resize((16, 16), Image.LANCZOS)
+    return bytes(v // 24 for v in g.tobytes())

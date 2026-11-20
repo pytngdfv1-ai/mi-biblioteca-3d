@@ -20,6 +20,7 @@ import time
 
 import clouds
 import imagen
+import liviano
 from render import Renderer, data_url, webp
 
 AUDIO = (".flac", ".mp3", ".m4a", ".ogg", ".opus", ".wav", ".aac")
@@ -153,7 +154,7 @@ def hacer_album(r, out, cloud, path, files, root, st):
     back_b = cloud.get(f"{path}/{nombre_back}") if tiene_back else b""
     sello_b = cloud.get(f"{path}/{nombre_sello}") if nombre_sello else b""
     shell_b = cloud.get(f"{path}/{nombre_shell}") if nombre_shell else b""
-    huella = sha(VERSION, front_b, back_b, sello_b, shell_b, titulo, artista, anio or "", "|".join(temas), ",".join(objetos))
+    huella = sha(VERSION, imagen.huella_img(imagen.abrir(front_b, 256)), imagen.huella_img(imagen.abrir(back_b, 256)) if back_b else b"", imagen.huella_img(imagen.abrir(sello_b, 256)) if sello_b else b"", imagen.huella_img(imagen.abrir(shell_b, 256)) if shell_b else b"", titulo, artista, anio or "", "|".join(temas), ",".join(objetos))
 
     man_path = f"{path}/objeto3d.json"
     if not os.environ.get("FORCE") == "true" and "objeto3d.json" in files:
@@ -286,6 +287,8 @@ def main():
         dry = (os.environ.get("DRY_RUN", "") or "").lower() in ("1", "true", "yes")
         for cfg in load_configs():
             run_cloud(cfg, maxn, dry, r)
+            if os.environ.get("LIVIANO", "true") != "false":
+                liviano.run(cfg, dry)
     finally:
         r.close()
 

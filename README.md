@@ -37,6 +37,15 @@ esperaba, la próxima corrida le hace el LP y el 7".
 
 `_agente3d/objetos.md` en tu nube: creados, ya hechos, esperan contraportada, sin portada, errores y pendientes.
 
+## Imágenes livianas
+
+Después de los objetos, cada corrida convierte imágenes JPG/PNG de la biblioteca a WebP (hasta 60 por corrida,
+12 minutos) y, **solo si la copia pasó la comprobación**, borra el original:
+la copia abre, tiene las mismas proporciones, se parece al original (diferencia media < 4/255), pesa al menos
+20 % menos y, al volver a descargarla de la nube, es idéntica. Si algo falla, el original queda intacto.
+Lo que ya es chico (< 120 KB) o no ahorra se deja como está. Informe: `_agente3d/liviano.md`.
+Lado máximo 3000 px, calidad 90. Para solo copiar sin borrar: `liviano_borrar=false`.
+
 ## Configuración
 
 Secrets del repo (Settings → Secrets and variables → Actions): `KOOFR_EMAIL`, `KOOFR_APP_PASSWORD`,

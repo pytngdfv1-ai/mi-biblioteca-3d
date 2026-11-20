@@ -23,6 +23,9 @@ class Cloud:
     def mkdir(self, path):
         raise NotImplementedError
 
+    def delete(self, path):
+        raise NotImplementedError
+
     def copy(self, src, dst):
         """Copia un archivo sin sobrescribir. True si se copió."""
         if self.exists(dst):
@@ -84,6 +87,10 @@ class WebDav(Cloud):
             acc += "/" + seg
             self.s.request("MKCOL", self._url(acc), timeout=60)
 
+    def delete(self, path):
+        r = self.s.request("DELETE", self._url(path), timeout=120)
+        return r.status_code in (200, 202, 204)
+
     def copy(self, src, dst):
         if self.exists(dst):
             return False
@@ -123,6 +130,13 @@ class Local(Cloud):
 
     def mkdir(self, path):
         os.makedirs(self._p(path), exist_ok=True)
+
+    def delete(self, path):
+        try:
+            os.remove(self._p(path))
+            return True
+        except OSError:
+            return False
 
     def put(self, path, data, ctype="", overwrite=False):
         p = self._p(path)

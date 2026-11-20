@@ -15,6 +15,15 @@ on:
       max_albums:
         description: "Máximo de álbumes por corrida"
         default: "60"
+      liviano:
+        description: "Convertir imágenes a WebP (true/false)"
+        default: "true"
+      liviano_borrar:
+        description: "Borrar el original tras comprobar la copia (true/false)"
+        default: "true"
+      liviano_max:
+        description: "Máximo de imágenes por corrida"
+        default: "60"
       dry_run:
         description: "Probar sin escribir en la nube (deja los archivos en el artefacto)"
         default: "false"
@@ -36,6 +45,9 @@ jobs:
       FORCE: ${{ github.event.inputs.force }}
       DRY_RUN: ${{ github.event.inputs.dry_run }}
       MAX_ALBUMS: ${{ github.event.inputs.max_albums }}
+      LIVIANO: ${{ github.event.inputs.liviano }}
+      LIVIANO_BORRAR: ${{ github.event.inputs.liviano_borrar }}
+      LIVIANO_MAX: ${{ github.event.inputs.liviano_max }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

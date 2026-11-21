@@ -26,6 +26,11 @@ class Cloud:
     def delete(self, path):
         raise NotImplementedError
 
+    def move(self, src, dst):
+        if self.exists(dst) or not self.copy(src, dst):
+            return False
+        return self.delete(src)
+
     def copy(self, src, dst):
         """Copia un archivo sin sobrescribir. True si se copió."""
         if self.exists(dst):
@@ -91,6 +96,13 @@ class WebDav(Cloud):
         r = self.s.request("DELETE", self._url(path), timeout=120)
         return r.status_code in (200, 202, 204)
 
+    def move(self, src, dst):
+        """Mueve/renombra archivo o carpeta sin sobrescribir."""
+        if self.exists(dst):
+            return False
+        r = self.s.request("MOVE", self._url(src), headers={"Destination": self._url(dst), "Overwrite": "F"}, timeout=300)
+        return r.status_code in (201, 204)
+
     def copy(self, src, dst):
         if self.exists(dst):
             return False
@@ -134,6 +146,15 @@ class Local(Cloud):
     def delete(self, path):
         try:
             os.remove(self._p(path))
+            return True
+        except OSError:
+            return False
+
+    def move(self, src, dst):
+        if os.path.exists(self._p(dst)):
+            return False
+        try:
+            os.rename(self._p(src), self._p(dst))
             return True
         except OSError:
             return False

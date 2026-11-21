@@ -51,6 +51,19 @@ def _mover(cloud, src, dst):
     return cloud.delete(src)
 
 
+def carpetas_con_espacios(cloud, path, depth=0, out=None):
+    """Carpetas cuyo nombre empieza o termina con espacio. Devuelve de más profunda a menos."""
+    out = [] if out is None else out
+    if depth > g.MAX_DEPTH:
+        return out
+    for n, d in cloud.list(path):
+        if d and not n.startswith(("_", ".")):
+            carpetas_con_espacios(cloud, f"{path}/{n}", depth + 1, out)
+            if n != n.strip() and n.strip():
+                out.append((path, n))
+    return out
+
+
 def run(cfg, modo):
     cloud = clouds.make(cfg)
     root = "/" + cfg.get("folder", "").strip("/") if cfg.get("folder") else ""
@@ -62,7 +75,12 @@ def run(cfg, modo):
         reg = {}
     cambios = reg.get("cambios", [])
     L = [f"# Nombres de temas ({modo}) – {dt.datetime.now(dt.timezone.utc):%Y-%m-%d %H:%M} UTC", ""]
+    carp = reg.get("carpetas", [])
     if modo == "revertir":
+        for c in list(carp):
+            if cloud.move(c["a"], c["de"]):
+                carp.remove(c)
+                L.append(f"- carpeta revertida: {c['a']} → {c['de']}")
         n = 0
         for c in list(cambios):
             ok = _mover(cloud, f"{c['carpeta']}/{c['a']}", f"{c['carpeta']}/{c['de']}")
@@ -75,6 +93,18 @@ def run(cfg, modo):
         L.insert(2, f"Revertidos: {n}\n")
     else:
         hechos = 0
+        for padre, n in carpetas_con_espacios(cloud, root):
+            de, a = f"{padre}/{n}", f"{padre}/{n.strip()}"
+            if modo == "aplicar":
+                if cloud.exists(a):
+                    L.append(f"- carpeta NO renombrada (ya existe otra igual): {de[len(root):]}")
+                    continue
+                if not cloud.move(de, a):
+                    L.append(f"- carpeta NO se pudo renombrar: {de[len(root):]}")
+                    continue
+                carp.append({"de": de, "a": a})
+            hechos += 1
+            L.append(f"- carpeta: `{n}` → `{n.strip()}` en {padre[len(root):] or '/'}")
         for p, files in g.scan(cloud, root):
             artista, _ = g.names(p, root)
             usados = {f.lower() for f in files}
@@ -83,6 +113,8 @@ def run(cfg, modo):
                     continue
                 stem, ext = os.path.splitext(f)
                 ns = nuevo_stem(stem, artista)
+                if not ns and stem != stem.strip():
+                    ns = stem.strip()
                 if not ns or (ns + ext).lower() in usados:
                     continue
                 nuevo = ns + ext
@@ -106,7 +138,7 @@ def run(cfg, modo):
     txt = "\n".join(L)
     print(txt)
     if modo != "prueba":
-        cloud.put(lp, json.dumps({"cambios": cambios}, ensure_ascii=False, indent=1).encode(), "application/json", overwrite=True)
+        cloud.put(lp, json.dumps({"cambios": cambios, "carpetas": carp}, ensure_ascii=False, indent=1).encode(), "application/json", overwrite=True)
     cloud.put(f"{ag}/nombres.md", txt.encode("utf-8"), "text/markdown", overwrite=True)
     sm = os.environ.get("GITHUB_STEP_SUMMARY")
     if sm:

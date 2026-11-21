@@ -1,12 +1,9 @@
 import coveralia as c, re
-for a, al in [("Fito Páez","No Sé Si Es Baires O Madrid"),("Los Redonditos de Ricota","La mosca y la sopa"),("No Te Va Gustar","Otras Canciones"),("Nirvana","Nevermind")]:
-    for ar in [a]:
-        for v in c._variantes(al):
-            url = f"https://www.coveralia.com/discos/{c._slug(ar)}-{c._slug(v)}.php"
-            r = c._get(url); print(url, r.status_code)
-            if r.status_code == 200:
-                m = re.search(r'href="/caratulas/([^"]+-Trasera)\.php"', r.text); print(" link:", m and m.group(1))
-                if m:
-                    img = f"https://images.coveralia.com/audio/n/{m.group(1)}.jpg"
-                    ri = c._get(img); print(" img", ri.status_code, len(ri.content), ri.headers.get("content-type"), ri.content[:4])
-                break
+r = c._get("https://www.coveralia.com/discos/fito_paez-no_se_si_es_baires_o_madrid.php")
+t = r.text; i = t.find("-Trasera.php"); print(t[i-250:i+350])
+m = re.search(r'/caratulas/([^"]+-Trasera)\.php"[^>]*>\s*<img[^>]+src="([^"]+)"', t); print(m and m.groups())
+for u in ["https://images.coveralia.com/audio/f/Fito-Paez-No-Se-Si-Es-Baires-O-Madrid-Trasera.jpg",
+          "https://images.coveralia.com/audio/n/Fito-Paez-No-Se-Si-Es-Baires-O-Madrid-Frontal.jpg",
+          "https://images.coveralia.com/audio/n/Fito-Paez-No-Se-Si-Es-Baires-O-Madrid-Trasera.jpg"]:
+    ri = c._get(u); print(u, ri.status_code, len(ri.content))
+r = c._get("https://www.coveralia.com/caratulas/Fito-Paez-No-Se-Si-Es-Baires-O-Madrid-Frontal.php"); print(r.status_code, re.findall(r'(https?:[^"\']*images\.coveralia[^"\']*)', r.text)[:6], "Fatal" in r.text)

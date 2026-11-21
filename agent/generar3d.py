@@ -121,7 +121,7 @@ class Salida:
 def _buscar_trasera(cloud, path, artista, titulo, estado_cov):
     """Si Coveralia tiene la trasera, la guarda como Contraportada.jpg en la carpeta del álbum."""
     import coveralia
-    cov = estado_cov.setdefault("coveralia", {})
+    cov = estado_cov.setdefault("coveralia2", {})
     hoy = dt.date.today()
     ult = cov.get(path)
     if ult and (hoy - dt.date.fromisoformat(ult)).days < 14:

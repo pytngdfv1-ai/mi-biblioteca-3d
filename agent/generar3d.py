@@ -213,6 +213,8 @@ def informe(res, total, t0):
 def run_cloud(cfg, maxn, dry, r):
     cloud = clouds.make(cfg)
     root = "/" + cfg.get("folder", "").strip("/") if cfg.get("folder") else ""
+    global AG
+    AG = f"{root}/_agente3d"   # dentro de la carpeta de música, donde la app lo busca
     out = Salida(cloud, dry)
     albums = scan(cloud, root)
     print(f"[{cfg['name']}] {len(albums)} álbumes")

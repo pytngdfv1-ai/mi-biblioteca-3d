@@ -86,6 +86,8 @@ def run(cfg, dry):
     borrar = os.environ.get("LIVIANO_BORRAR", "true") != "false"
     cloud = clouds.make(cfg)
     root = "/" + cfg.get("folder", "").strip("/") if cfg.get("folder") else ""
+    global AG
+    AG = f"{root}/_agente3d"
     sp = f"{AG}/liviano.json"
     try:
         st = json.loads(cloud.get(sp)) if cloud.exists(sp) else {}

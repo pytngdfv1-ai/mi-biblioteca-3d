@@ -55,12 +55,24 @@ def trasera(artista, album):
             m = re.search(r'href="/caratulas/([^"]+-Trasera)\.php"', r.text)
             if not m:
                 return None, "el disco está en Coveralia pero sin trasera"
-            img = f"https://images.coveralia.com/audio/n/{m.group(1)}.jpg"
-            try:
-                ri = _get(img)
-            except Exception:
-                return None, "no se pudo bajar la imagen"
-            if ri.status_code == 200 and ri.content[:3] == b"\xff\xd8\xff" and len(ri.content) > 20_000:
-                return ri.content, img
-            return None, "imagen inválida"
+            mf = re.search(r'href="/caratulas/([^"]+-Frontal)\.php"', r.text)
+            img = None
+            if mf:   # la página de la frontal muestra la ruta real (audio/<letra>/Artista_Album-Frontal.jpg)
+                try:
+                    rf = _get(f"https://www.coveralia.com/caratulas/{mf.group(1)}.php")
+                    mi = re.search(r'(https?://images\.coveralia\.com/audio/[a-z0-9]/[^"\']+-Frontal\.jpg)', rf.text)
+                    if mi:
+                        img = mi.group(1)[:-len("Frontal.jpg")] + "Trasera.jpg"
+                except Exception:
+                    pass
+            for cand in [img, f"https://images.coveralia.com/audio/n/{m.group(1)}.jpg"]:
+                if not cand:
+                    continue
+                try:
+                    ri = _get(cand)
+                except Exception:
+                    continue
+                if ri.status_code == 200 and ri.content[:3] == b"\xff\xd8\xff" and len(ri.content) > 20_000:
+                    return ri.content, cand
+            return None, "imagen no disponible"
     return None, "no está en Coveralia"

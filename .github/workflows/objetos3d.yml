@@ -24,6 +24,9 @@ on:
       liviano_max:
         description: "Máximo de imágenes por corrida"
         default: "60"
+      nombres:
+        description: "Nombres de temas (quitar el artista): prueba, aplicar o revertir. Vacío = no hace nada"
+        default: ""
       dry_run:
         description: "Probar sin escribir en la nube (deja los archivos en el artefacto)"
         default: "false"
@@ -48,6 +51,7 @@ jobs:
       LIVIANO: ${{ github.event.inputs.liviano }}
       LIVIANO_BORRAR: ${{ github.event.inputs.liviano_borrar }}
       LIVIANO_MAX: ${{ github.event.inputs.liviano_max }}
+      NOMBRES: ${{ github.event.inputs.nombres }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -59,6 +63,9 @@ jobs:
       - run: npm ci || npm install
       - run: pip install -r agent/requirements.txt
       - run: python -m playwright install --with-deps chromium
+      - name: Corregir nombres de temas
+        if: github.event.inputs.nombres != ''
+        run: cd agent && python nombres.py
       - name: Generar objetos 3D
         run: cd agent && python generar3d.py
       - name: Guardar resultados de prueba

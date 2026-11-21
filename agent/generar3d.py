@@ -118,6 +118,26 @@ class Salida:
         return self.cloud.put(path, data, ctype, overwrite=True)
 
 
+def _buscar_trasera(cloud, path, artista, titulo, estado_cov):
+    """Si Coveralia tiene la trasera, la guarda como Contraportada.jpg en la carpeta del álbum."""
+    import coveralia
+    cov = estado_cov.setdefault("coveralia", {})
+    hoy = dt.date.today()
+    ult = cov.get(path)
+    if ult and (hoy - dt.date.fromisoformat(ult)).days < 14:
+        return None                      # ya se buscó hace poco: no insistir
+    b, info = coveralia.trasera(artista, titulo)
+    cov[path] = hoy.isoformat()
+    if not b:
+        print(f"    Coveralia: {info}")
+        return None
+    if cloud.put(f"{path}/Contraportada.jpg", b, "image/jpeg", overwrite=False):
+        print(f"    Coveralia: trasera guardada ({info})")
+        cov.pop(path, None)
+        return "Contraportada.jpg"
+    return None
+
+
 def hacer_album(r, out, cloud, path, files, root, st):
     """Devuelve (estado, detalle). estado: hecho | salta | espera | error | sin_portada"""
     artista, album = names(path, root)
@@ -142,6 +162,10 @@ def hacer_album(r, out, cloud, path, files, root, st):
     sello_nom = meta.get("sello") or None
     temas = [t.get("titulo") for t in (meta.get("temas") or []) if t.get("titulo")] or [track_name(f) for f in sorted(audio)]
 
+    if nombre_back is None and not single and not os.environ.get("DRY_RUN") == "true" and not os.environ.get("DEMO") == "true":
+        nombre_back = _buscar_trasera(cloud, path, artista, titulo, estado_cov=st)
+        if nombre_back:
+            files = list(files) + [nombre_back]
     tiene_back = nombre_back is not None
     if single:
         objetos = ["7", "k7"]

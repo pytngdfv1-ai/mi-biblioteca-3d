@@ -33,6 +33,9 @@ on:
       disco_incluir:
         description: "Extras en la discografía: vivo, recopilatorio, single (separados por coma)"
         default: ""
+      duplicados:
+        description: "Artistas duplicados: vacío = solo informa; aplicar = mueve la sobrante a _duplicados; revertir = la devuelve"
+        default: ""
       dry_run:
         description: "Probar sin escribir en la nube (deja los archivos en el artefacto)"
         default: "false"
@@ -58,6 +61,8 @@ jobs:
       LIVIANO_BORRAR: ${{ github.event.inputs.liviano_borrar }}
       LIVIANO_MAX: ${{ github.event.inputs.liviano_max }}
       NOMBRES: ${{ github.event.inputs.nombres }}
+      DUPLICADOS: ${{ github.event.inputs.duplicados }}
+      DISCOGS_TOKEN: ${{ secrets.DISCOGS_TOKEN }}
       DISCOGRAFIA: ${{ github.event.inputs.discografia }}
       DISCO_INCLUIR: ${{ github.event.inputs.disco_incluir }}
     steps:

@@ -97,6 +97,33 @@ def temas(rgid):
     return []
 
 
+def discogs(nombre):
+    """Segunda fuente (solo si hay DISCOGS_TOKEN, gratis en discogs.com/settings/developers): álbumes principales del artista."""
+    tok = os.environ.get("DISCOGS_TOKEN")
+    if not tok:
+        return None
+    h = {"Authorization": f"Discogs token={tok}", "User-Agent": UA}
+    try:
+        time.sleep(1.1)
+        d = S.get("https://api.discogs.com/database/search", params={"q": nombre, "type": "artist", "per_page": 5}, headers=h, timeout=25).json()
+        a = next((r for r in d.get("results", []) if similar(r.get("title"), nombre)), None)
+        if not a:
+            return None
+        out, pag = [], 1
+        while pag <= 4:
+            time.sleep(1.1)
+            r = S.get(f"https://api.discogs.com/artists/{a['id']}/releases", params={"per_page": 100, "page": pag, "sort": "year"}, headers=h, timeout=25).json()
+            for x in r.get("releases", []):
+                if x.get("type") == "master" and x.get("role") == "Main":
+                    out.append({"id": f"d{x['id']}", "titulo": x["title"], "año": x.get("year") or None, "tipo": "album"})
+            if pag >= (r.get("pagination", {}).get("pages") or 1):
+                break
+            pag += 1
+        return {"mbid": f"discogs:{a['id']}", "nombre": a.get("title", nombre), "lista": out} if out else None
+    except Exception:
+        return None
+
+
 def artistas(cloud, root):
     """{ruta carpeta artista: {nombre, albums:set(nombres)}} según Música/Idioma/Artista/Álbum."""
     out = {}
@@ -163,11 +190,16 @@ def run(cfg, dry):
             continue
         if "mbid" not in e:
             info = buscar_artista(a["nombre"])
+            alt = None if info else discogs(a["nombre"])
+            if alt:
+                e.update({"mbid": alt["mbid"], "nombre": alt["nombre"], "lista": alt["lista"], "temas": {}, "fuente": "Discogs"})
+                info = e
             if not info:
                 e["sin"] = True
                 print("  sin coincidencia segura:", a["nombre"])
                 continue
-            e.update(info)
+            if info is not e:
+                e.update(info)
         if "lista" not in e:
             e["lista"] = discos(e["mbid"], incluir)
             e["temas"] = {}
@@ -176,7 +208,7 @@ def run(cfg, dry):
                 continue
             if time.time() - t0 > limite:
                 break
-            e["temas"][g["id"]] = temas(g["id"])
+            e["temas"][g["id"]] = temas(g["id"]) if not str(g["id"]).startswith("d") else []
         e["hecho"] = all(g["id"] in e["temas"] for g in e["lista"])
         d = armar(a["nombre"], e, e["lista"], e["temas"], a["albums"])
         huella = hashlib.sha1(json.dumps([x["tengo"] for x in d["albumes"]] + [len(e["temas"])]).encode()).hexdigest()
@@ -189,4 +221,15 @@ def run(cfg, dry):
                 print(f"  {a['nombre']}: {d['tienes']}/{d['total']}" + ("" if e["hecho"] else " (parcial)"))
     if not dry:
         cloud.put(sp, json.dumps(st, ensure_ascii=False).encode(), "application/json", overwrite=True)
+        todos = []
+        for ruta, a in arts.items():
+            e = st["artistas"].get(ruta) or {}
+            if not e.get("lista"):
+                continue
+            d = armar(a["nombre"], e, e["lista"], e.get("temas", {}), a["albums"])
+            d["parcial"] = not e.get("hecho", False)
+            d.pop("mbid", None)
+            todos.append(d)
+        cloud.put(f"{root}/_agente3d/discografias.json", json.dumps({"actualizado": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d"), "artistas": todos},
+                                                                  ensure_ascii=False).encode(), "application/json", overwrite=True)
     print(f"[discografía] archivos escritos esta corrida: {tocados}")

@@ -21,6 +21,7 @@ import time
 import clouds
 import imagen
 import discografia
+import duplicados
 import liviano
 from render import Renderer, data_url, webp
 
@@ -320,6 +321,10 @@ def main():
                 discografia.run(cfg, dry)
             except Exception as ex:
                 print("Discografía falló:", ex)
+            try:
+                duplicados.run(cfg, dry)
+            except Exception as ex:
+                print("Duplicados falló:", ex)
     finally:
         r.close()
 

@@ -27,6 +27,12 @@ on:
       nombres:
         description: "Nombres de temas (quitar el artista): prueba, aplicar o revertir. Vacío = no hace nada"
         default: ""
+      discografia:
+        description: "Discografía de cada artista (true/false)"
+        default: "true"
+      disco_incluir:
+        description: "Extras en la discografía: vivo, recopilatorio, single (separados por coma)"
+        default: ""
       dry_run:
         description: "Probar sin escribir en la nube (deja los archivos en el artefacto)"
         default: "false"
@@ -52,6 +58,8 @@ jobs:
       LIVIANO_BORRAR: ${{ github.event.inputs.liviano_borrar }}
       LIVIANO_MAX: ${{ github.event.inputs.liviano_max }}
       NOMBRES: ${{ github.event.inputs.nombres }}
+      DISCOGRAFIA: ${{ github.event.inputs.discografia }}
+      DISCO_INCLUIR: ${{ github.event.inputs.disco_incluir }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

@@ -20,6 +20,7 @@ import time
 
 import clouds
 import imagen
+import discografia
 import liviano
 from render import Renderer, data_url, webp
 
@@ -315,6 +316,10 @@ def main():
             run_cloud(cfg, maxn, dry, r)
             if os.environ.get("LIVIANO", "true") != "false":
                 liviano.run(cfg, dry)
+            try:
+                discografia.run(cfg, dry)
+            except Exception as ex:
+                print("Discografía falló:", ex)
     finally:
         r.close()
 
